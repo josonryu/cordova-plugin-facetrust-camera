@@ -1,0 +1,30 @@
+<?xml version='1.0' encoding='utf-8'?>
+<plugin id="cordova-plugin-facetrust-camera" version="1.0.0" xmlns="http://apache.org/cordova/ns/plugins/1.0" xmlns:android="http://schemas.android.com/apk/res/android">
+    <name>facetrustCamera</name>
+    <js-module name="facetrustCamera" src="www/facetrustCamera.js">
+        <clobbers target="facetrustCamera" />
+    </js-module>
+    <dependency id="cordova-plugin-file" version="8.1.0" />
+    <platform name="windows">
+        <js-module name="FacetrustCameraProxy" src="src/windows/FacetrustCameraProxy.js">
+            <runs />
+        </js-module>
+        <asset src="src/windows/cameraLib" target="cameraLib" />
+        <edit-config file="package.windows10.appxmanifest" target="/Package" mode="merge" >
+            <Package xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10" xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities" />
+        </edit-config>
+        <config-file target="package.windows10.appxmanifest" parent="/Package/Capabilities">
+            <rescap:Capability Name="runFullTrust" />
+        </config-file>
+        <config-file target="package.windows10.appxmanifest" parent="/Package/Applications/Application">
+            <Extensions>
+                <desktop:Extension Category="windows.fullTrustProcess" Executable="www\cameraLib\ScanAPP.exe">
+                    <desktop:FullTrustProcess>
+                        <desktop:ParameterGroup GroupId="SyncGroup" Parameters="/Sync" />
+                        <desktop:ParameterGroup GroupId="OtherGroup" Parameters="/Other" />
+                    </desktop:FullTrustProcess>
+                </desktop:Extension>
+            </Extensions>
+        </config-file>
+    </platform>
+</plugin>

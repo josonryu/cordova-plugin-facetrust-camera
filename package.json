@@ -1,0 +1,21 @@
+{
+  "name": "cordova-plugin-facetrust-camera",
+  "version": "1.0.0",
+  "description": "",
+  "cordova": {
+    "id": "cordova-plugin-facetrust-camera",
+    "platforms": [
+      "windows"
+    ]
+  },
+  "keywords": [
+    "ecosystem:cordova",
+    "cordova-windows"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cordova-plugin-facetrust-camera": "file:",
+    "cordova-plugin-file": "8.1.0"
+  }
+}

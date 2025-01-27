@@ -1,0 +1,27 @@
+BASICKANRIFILE
+MOJI_NUM     	 5071
+YOKO_ALL       	    0	 5003
+TATE_ALL       	  540	 5071
+SYMBOL_F       	    0	  110
+HIRAGANA_F     	  866	 1058
+KATAKANA_F     	 1058	 1264
+SYMBOL_COM_F   	  540	  684
+NUM_F          	  684	  714
+ALPH_UPPERF    	  714	  788
+ALPH_LOWERF    	  788	  866
+HIRAGANA_COMF  	  866	 1058
+KATAKANA_COMF  	 1058	 1264
+KANJI          	 1264	 4229
+SYMBOL_H       	  288	  382
+NUMH           	  110	  140
+ALPH_UPPERH    	  140	  210
+ALPH_LOWERH    	  210	  288
+HIRAGANA_H     	    0	    0
+KATAKANA_H     	  382	  540
+SYMBOL_T       	 5003	 5071
+HIRAGANA_T     	    0	    0
+KATAKANA_T     	    0	    0
+RESERVE1       	    0	    0
+RESERVE2       	    0	    0
+RESERVE3       	    0	    0
+KANJI2         	 4229	 5003
