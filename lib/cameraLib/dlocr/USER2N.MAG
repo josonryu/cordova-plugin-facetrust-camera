@@ -1,0 +1,26 @@
+USERKANRIFILE
+MOJI_NUM                 46
+YOKO_ALL                  0            46
+TATE_ALL                 28            46
+SYMBOL_F                  0             0
+HIRAGANA_F                0             0
+KATAKANA_F                0            28
+SYMBOL_COM_F             28            28
+NUM_F                    28            28
+ALPH_UPPERF              28            28
+ALPH_LOWERF              28            28
+HIRAGANA_COMF            28            32
+KATAKANA_COMF            32            32
+KANJI                    32            46
+SYMBOL_H                 46            46
+NUMH                     46            46
+ALPH_UPPERH              46            46
+ALPH_LOWERH              46            46
+HIRAGANA_H               46            46
+KATAKANA_H               46            46
+SYMBOL_T                 46            46
+HIRAGANA_T               46            46
+KATAKANA_T               46            46
+RESERVE1                 46            46
+RESERVE2                 46            46
+RESERVE3                 46            46

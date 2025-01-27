@@ -9,7 +9,7 @@
         <js-module name="FacetrustCameraProxy" src="src/windows/FacetrustCameraProxy.js">
             <runs />
         </js-module>
-        <asset src="src/windows/cameraLib" target="cameraLib" />
+        <asset src="lib/cameraLib" target="cameraLib" />
         <edit-config file="package.windows10.appxmanifest" target="/Package" mode="merge" >
             <Package xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10" xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities" />
         </edit-config>

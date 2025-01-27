@@ -1,13 +1,15 @@
-var imagePath, settingsPath;
+var imageFileName, settingsFileName, cameraFolderPath, imageFilePath, settingsFilePath;
+
 exports.startCamera = function (successCallback, errorCallback, args) {
     // if (!(args && args[0])) { 
     //     return errorCallback();
     // }
-    // var parameter = args[0];
     
-    // writeSettings(parameter, successCallback, errorCallback);
-    imagePath = cordova.file.dataDirectory + 'camera/imagebase64.txt';
-    settingsPath = cordova.file.dataDirectory + 'camera/settings.xml';
+    imageFileName = 'imagebase64.txt';
+    settingsFileName = 'settings.xml';
+    cameraFolderPath = cordova.file.dataDirectory + 'camera';
+    imageFilePath = cameraFolderPath + '/' + imageFileName;
+    settingsFilePath = cameraFolderPath + '/' + settingsFileName;
 
     var getScanInfoSuccessCallback = function (scanInfo) {
         successCallback(scanInfo);
@@ -15,7 +17,10 @@ exports.startCamera = function (successCallback, errorCallback, args) {
     var launchCameraAppSuccessCallback = function () {
         getScanInfo(getScanInfoSuccessCallback, errorCallback);
     };
-    launchCameraApp(launchCameraAppSuccessCallback, errorCallback);
+    var writeSettingsSuccessCallback = function () {
+        launchCameraApp(launchCameraAppSuccessCallback, errorCallback);
+    };
+    writeSettings(args[0], writeSettingsSuccessCallback, errorCallback);
 };
 
 function launchCameraApp (successCallback, errorCallback) {
@@ -24,7 +29,7 @@ function launchCameraApp (successCallback, errorCallback) {
             Windows.ApplicationModel.FullTrustProcessLauncher.launchFullTrustProcessForCurrentAppAsync();
             var checkCameraStatus = function () {
                 getSettings(function (settings) {
-                    if (settings && settings['CameraScreenStatus'] === '0') {
+                    if (settings && settings['CAMERA_SCREEN_STATUS'] === '0') {
                         return successCallback();
                     }
                     setTimeout(checkCameraStatus, 500);
@@ -43,16 +48,16 @@ function getScanInfo (successCallback, errorCallback) {
     var tryGetScanInfo = function () {
         getSettings(function (settings) {
             if (settings) {
-                var { CameraScreenStatus, ImageFileExists, ScanPhotoMode, CameraScanErrorCode } = settings;
-                if (CameraScreenStatus === '0' && ImageFileExists !== '0' && CameraScanErrorCode !== '1') {
+                var { CAMERA_SCREEN_STATUS, IMAGE_FILE_EXISTS, SCAN_PHOTO_MODE, CAMERA_SCAN_ERROR_CODE } = settings;
+                if (CAMERA_SCREEN_STATUS === '0' && IMAGE_FILE_EXISTS !== '0' && CAMERA_SCAN_ERROR_CODE !== '1') {
                     setTimeout(tryGetScanInfo, 500);
-                } else if (ImageFileExists === '0') {
-                    return readFileTxtData(imagePath, (image) => {
-                        return successCallback({ mode: Number(ScanPhotoMode), image });
+                } else if (IMAGE_FILE_EXISTS === '0') {
+                    return readFileTxtData(imageFilePath, (image) => {
+                        return successCallback({ mode: Number(SCAN_PHOTO_MODE), image });
                     }, errorCallback);
-                } else if (CameraScanErrorCode === '1') {
+                } else if (CAMERA_SCAN_ERROR_CODE === '1') {
                     return errorCallback('cancelCallback');
-                } else if (CameraScreenStatus === '1') {
+                } else if (CAMERA_SCREEN_STATUS === '1') {
                     return errorCallback();
                 } else {
                     return errorCallback();
@@ -65,27 +70,20 @@ function getScanInfo (successCallback, errorCallback) {
     tryGetScanInfo();
 }
 
-function writeSettings (settings, successCallback, errorCallback) {
-    var JSONtoXML = function (obj) {
-        var xml = '';
-        for (var prop in obj) {
-          xml += obj[prop] instanceof Array ? '' : '<' + prop + '>';
-          if (obj[prop] instanceof Array) {
-            for (let array in obj[prop]) {
-              xml += '\n<' + prop + '>\n';
-              xml += JSONtoXML(new Object(obj[prop][array]));
-              xml += '</' + prop + '>';
-            }
-          } else if (typeof obj[prop] == 'object') {
-            xml += JSONtoXML(new Object(obj[prop]));
-          } else {
-            xml += obj[prop];
-          }
-          xml += obj[prop] instanceof Array ? '' : '</' + prop + '>\n';
+function writeSettings (parameter, successCallback, errorCallback) {
+    var settings = {
+        'SETTINGS': {
+            'PERSONAL_IDENTIFY_DOCUMENTS': getDocumentName(parameter['PERSONAL_IDENTIFY_DOCUMENTS']),
+            'CAMERA_MODE': parameter['CAMERA_MODE'],
+            'CAMERA_SHUTDOWN_SECONDS': parameter['CAMERA_SHUTDOWN_SECONDS'],
+            'CAMERA_SCREEN_STATUS': '',
+            'IMAGE_FILE_EXISTS': '',
+            'SCAN_PHOTO_MODE': '',
+            'CAMERA_SCAN_ERROR_CODE': '',
         }
-        xml = xml.replace(/<\/?[0-9]{1,}>/g, '');
-        return xml;
-      }
+    };
+    var xmlString = jsonToXml(settings);
+    saveFileTxtData(cameraFolderPath, settingsFileName, xmlString, successCallback, errorCallback);
 }
 
 function getSettings (successCallback, errorCallback) {
@@ -105,10 +103,9 @@ function getSettings (successCallback, errorCallback) {
         return successCallback(xmlObj);
     };
     var existsFileSuccessCallback = function () {
-        readFileTxtData(settingsPath, readFileTxtDataSuccessCallback, errorCallback);
+        readFileTxtData(settingsFilePath, readFileTxtDataSuccessCallback, errorCallback);
     };
-    existsFile(settingsPath, existsFileSuccessCallback, () => { });
-    // existsFile(settingsPath, existsFileSuccessCallback, errorCallback);
+    existsFile(settingsFilePath, existsFileSuccessCallback, errorCallback);
 }
 
 /**
@@ -184,6 +181,26 @@ function saveFileTxtData (dirPath, fileName, txtData, successCallback, errorCall
     });
 }
 
+function jsonToXml(json) {
+    let xml = '<?xml version="1.0" encoding="UTF-8" ?>\n';
+    function buildXml(obj) {
+        let result = '';
+        
+        for (const key in obj) {
+            if (obj.hasOwnProperty(key)) {
+                if (typeof obj[key] === 'object' && obj[key] !== null) {
+                    result += `<${key}>\n${buildXml(obj[key])}</${key}>\n`;
+                } else {
+                    result += `<${key}>${obj[key]}</${key}>\n`;
+                }
+            }
+        }
+        return result;
+    }
+    xml += buildXml(json);
+    return xml;
+}
+
 function serialize (xmlDoc) {
     var serializer = new XMLSerializer();
     return serializer.serializeToString(xmlDoc);
@@ -196,6 +213,15 @@ function deserialize (xmlString) {
         return '';
     } else {
         return xmlDoc;
+    }
+}
+
+function getDocumentName (kbn) {
+    switch (kbn) {
+        case '01':
+            return 'マイナンバーカード（表面）';
+        default:
+            return '';
     }
 }
 
