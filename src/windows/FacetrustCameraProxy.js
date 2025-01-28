@@ -28,7 +28,7 @@ function launchCameraApp (successCallback, errorCallback) {
         try {
             Windows.ApplicationModel.FullTrustProcessLauncher.launchFullTrustProcessForCurrentAppAsync();
             var checkCameraStatus = function () {
-                getSettings(function (settings) {
+                readSettings(function (settings) {
                     if (settings && settings['CAMERA_SCREEN_STATUS'] === '0') {
                         return successCallback();
                     }
@@ -46,7 +46,7 @@ function launchCameraApp (successCallback, errorCallback) {
 
 function getScanInfo (successCallback, errorCallback) {
     var tryGetScanInfo = function () {
-        getSettings(function (settings) {
+        readSettings(function (settings) {
             if (settings) {
                 var { CAMERA_SCREEN_STATUS, IMAGE_FILE_EXISTS, SCAN_PHOTO_MODE, CAMERA_SCAN_ERROR_CODE } = settings;
                 if (CAMERA_SCREEN_STATUS === '0' && IMAGE_FILE_EXISTS !== '0' && CAMERA_SCAN_ERROR_CODE !== '1') {
@@ -86,7 +86,7 @@ function writeSettings (params, successCallback, errorCallback) {
     saveFileTxtData(cameraFolderPath, settingsFileName, xmlString, successCallback, errorCallback);
 }
 
-function getSettings (successCallback, errorCallback) {
+function readSettings (successCallback, errorCallback) {
     var readFileTxtDataSuccessCallback = function (xmlString) {
         if (!xmlString) return errorCallback();
         var xmlDoc = deserialize(xmlString);
