@@ -1,0 +1,4 @@
+C:\Program Files\作業領域\03.検討\souce\base\ScanAPP\ScanAPP\obj\Debug\ScanAPP.csprojAssemblyReference.cache
+C:\Program Files\作業領域\03.検討\souce\base\ScanAPP\ScanAPP\obj\Debug\ScanAPP.Properties.Resources.resources
+C:\Program Files\作業領域\03.検討\souce\base\ScanAPP\ScanAPP\obj\Debug\ScanAPP.csproj.GenerateResource.cache
+C:\Program Files\作業領域\03.検討\souce\base\ScanAPP\ScanAPP\obj\Debug\ScanAPP.csproj.CoreCompileInputs.cache

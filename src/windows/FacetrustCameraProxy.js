@@ -70,12 +70,12 @@ function getScanInfo (successCallback, errorCallback) {
     tryGetScanInfo();
 }
 
-function writeSettings (parameter, successCallback, errorCallback) {
+function writeSettings (params, successCallback, errorCallback) {
     var settings = {
         'SETTINGS': {
-            'PERSONAL_IDENTIFY_DOCUMENTS': getDocumentName(parameter['PERSONAL_IDENTIFY_DOCUMENTS']),
-            'CAMERA_MODE': parameter['CAMERA_MODE'],
-            'CAMERA_SHUTDOWN_SECONDS': parameter['CAMERA_SHUTDOWN_SECONDS'],
+            'PERSONAL_IDENTIFY_DOCUMENTS': getDocumentName(params['PERSONAL_IDENTIFY_DOCUMENTS']),
+            'CAMERA_MODE': params['CAMERA_MODE'],
+            'CAMERA_SHUTDOWN_SECONDS': params['CAMERA_SHUTDOWN_SECONDS'],
             'CAMERA_SCREEN_STATUS': '',
             'IMAGE_FILE_EXISTS': '',
             'SCAN_PHOTO_MODE': '',
