@@ -21,62 +21,46 @@ namespace ScanAPP
         {
             InitCamera();
 
-            //string plainText = "This is a secret message!";
-            //string password = "your-strong-password";
+            // // Encrypt Encoding.UTF8.GetBytes
+            // byte[] encrypted = AesUtil.Encrypt(plainText, key, iv);
+            // Console.WriteLine("Encrypted (Base64): " + Convert.ToBase64String(encrypted));
 
-            //// Generate random IV (Initialization Vector)
-            //using (Aes aes = Aes.Create())
-            //{
-            //    aes.KeySize = 256; // Use AES-256
-            //    aes.GenerateIV();
-            //    byte[] iv = aes.IV;
-
-            //    // Derive key from password using a key derivation function (PBKDF2)
-            //    byte[] key = AesUtil.DeriveKeyFromPassword(password, aes.KeySize / 8);
-
-            //    // Encrypt
-            //    byte[] encrypted = AesUtil.Encrypt(plainText, key, iv);
-            //    Console.WriteLine("Encrypted (Base64): " + Convert.ToBase64String(encrypted));
-
-            //    // Decrypt
-            //    string decryptedText = AesUtil.Decrypt(encrypted, key, iv);
-            //    Console.WriteLine("Decrypted Text: " + decryptedText);
-            //}
+            // // Decrypt
+            // string decryptedText = AesUtil.Decrypt(encrypted, key, iv);
+            // Console.WriteLine("Decrypted Text: " + decryptedText);
         }
+        string AES_KEY = "/cHkKyj5IK5n3f1kbpvOmIivdaWCsyvGRKyyrMmSoRw=";
+        string AES_IV = "41UeTJS8uCd67Wx1h6fpcA==";
         string cameraFolderPath;
+        string imageFilePath;
+        string settingsFilePath;
         SettingsOperation operation;
 
         string personalIdentifyDocuments;
-        string cameraMode;
-        double cameraTimeout;
+        string cameraDiv;
+        double cameraShutdownSeconds;
 
         private void InitCamera()
         {
-            cameraFolderPath = Windows.Storage.ApplicationData.Current.LocalFolder.Path + @"\camera";
+            cameraFolderPath = Windows.Storage.ApplicationData.Current.LocalFolder.Path + @"Documents\appBizFile\camera";
             if (!Directory.Exists(cameraFolderPath))
             {
                 Environment.Exit(0);
             }
-            operation = new SettingsOperation(cameraFolderPath);
+            imageFilePath = cameraFolderPath + @"\result.txt";
+            settingsFilePath = cameraFolderPath + @"\settings.xml";
+            operation = new SettingsOperation(settingsFilePath);
             personalIdentifyDocuments = operation.Get("PERSONAL_IDENTIFY_DOCUMENTS");
-            cameraMode = operation.Get("CAMERA_MODE");
-            string cameraShutdownSeconds = operation.Get("CAMERA_SHUTDOWN_SECONDS");
-            if (cameraShutdownSeconds == "" || cameraShutdownSeconds == "0")
-            {
-                cameraTimeout = double.Parse(operation.Get("CAMERA_SHUTDOWN_SECONDS"));
-            }
-            else
-            {
-                cameraTimeout = 300;
-            }
+            cameraDiv = operation.Get("CAMERA_DIV");
+            cameraShutdownSeconds = double.Parse(operation.Get("CAMERA_SHUTDOWN_SECONDS"));
 
-            if (cameraMode == "1")
-            {
-                StartCameraOcr();
-            }
-            else
+            if (cameraDiv == "0")
             {
                 StartCameraScan();
+            }
+            if (cameraDiv == "1")
+            {
+                StartCameraOcr();
             }
         }
 
@@ -84,24 +68,23 @@ namespace ScanAPP
         {
             var scanError = PDLCameraScan.Instance.PrepareResource();
             var errorCode = (int)scanError.Code;
-            operation.Set("CAMERA_SCAN_ERROR_CODE", Convert.ToString(errorCode));
+            operation.Set("CAMERA_SCAN_RETURN_CODE", Convert.ToString(errorCode));
             if (scanError.Code != PDLCameraScanErrorCode.OK)
             {
                 Environment.Exit(0);
             }
             // CancelCaptureOnce メソッドの呼び出し例のため、
             // 300秒後にキャンセルするタイマーをスタートします。
-            var timer = new CameraTimer(cameraTimeout, CancelCameraScan);
+            var timer = new CameraTimer(cameraShutdownSeconds, CancelCameraScan);
             timer.Start();
             // カメラプレビュー開始
             // CaptureOnceはUIカスタマイズ機能を使用しない場合に用いるメソッドです。
             // UIカスタマイズ機能を使用する場合、CaptureOnce2メソッドをご利用ください。
             PDLDocInfo docInfo;
-            operation.Set("CAMERA_SCREEN_STATUS", "0");
             scanError = PDLCameraScan.Instance.CaptureOnce2(this, new CustomizeForm(personalIdentifyDocuments, "1"), out docInfo);
             // 上でスタートしたタイマーをストップします。
             timer.Stop();
-            operation.Set("CAMERA_SCAN_ERROR_CODE", Convert.ToString((int)scanError.Code));
+            operation.Set("CAMERA_SCAN_RETURN_CODE", Convert.ToString((int)scanError.Code));
             switch (scanError.Code)
             {
                 case PDLCameraScanErrorCode.OK:
@@ -115,7 +98,6 @@ namespace ScanAPP
                 default:
                     break;
             }
-            operation.Set("CAMERA_SCREEN_STATUS", "1");
             PDLCameraScan.Instance.DeinitResource();
             Environment.Exit(0);
         }
@@ -126,14 +108,14 @@ namespace ScanAPP
             SetOcrConfig();
             var scanError = PDLCameraOcr.Instance.PrepareResource();
             var errorCode = (int)scanError.Code;
-            operation.Set("CAMERA_SCAN_ERROR_CODE", Convert.ToString(errorCode));
+            operation.Set("CAMERA_SCAN_RETURN_CODE", Convert.ToString(errorCode));
             if (scanError.Code != PDLCameraOcrErrorCode.OK)
             {
                 Environment.Exit(0);
             }
             // CancelCaptureOnce メソッドの呼び出し例のため、
             // 300秒後にキャンセルするタイマーをスタートします。
-            var timer = new CameraTimer(cameraTimeout, CancelCameraOcr);
+            var timer = new CameraTimer(cameraShutdownSeconds, CancelCameraOcr);
             timer.Start();
             // カメラプレビュー開始
             // CaptureOnceはUIカスタマイズ機能を使用しない場合に用いるメソッドです。
@@ -143,7 +125,7 @@ namespace ScanAPP
             scanError = PDLCameraOcr.Instance.CaptureOnce2(this, new CustomizeForm(personalIdentifyDocuments, "1"), out cardInfo);
             // 上でスタートしたタイマーをストップします。
             timer.Stop();
-            operation.Set("CAMERA_SCAN_ERROR_CODE", Convert.ToString((int)scanError.Code));
+            operation.Set("CAMERA_SCAN_RETURN_CODE", Convert.ToString((int)scanError.Code));
             switch (scanError.Code)
             {
                 case PDLCameraOcrErrorCode.OK:
@@ -199,20 +181,20 @@ namespace ScanAPP
                         var SigBase64 = Convert.ToBase64String(byteImage);
                         if (SigBase64.Length > 0)
                         {
-                            File.WriteAllText(cameraFolderPath + @"\imagebase64.txt", SigBase64);
+                            File.WriteAllText(imageFilePath, SigBase64);
                             operation.Set("SCAN_PHOTO_MODE", ((int)docInfo.Mode).ToString(), false);
                             operation.Set("IMAGE_FILE_EXISTS", "0", false);
                             operation.write();
                         }
                         else
                         {
-                            operation.Set("CAMERA_SCAN_ERROR_CODE", "base64 transform failed");
+                            operation.Set("CAMERA_SCAN_RETURN_CODE", "base64 transform failed");
                         }
                     }
                 }
                 else
                 {
-                    operation.Set("CAMERA_SCAN_ERROR_CODE", "image not found");
+                    operation.Set("CAMERA_SCAN_RETURN_CODE", "image not found");
                 }
             }
         }
@@ -261,13 +243,13 @@ namespace ScanAPP
                         }
                         else
                         {
-                            operation.Set("CAMERA_SCAN_ERROR_CODE", "base64 transform failed");
+                            operation.Set("CAMERA_SCAN_RETURN_CODE", "base64 transform failed");
                         }
                     }
                 }
                 else
                 {
-                    operation.Set("CAMERA_SCAN_ERROR_CODE", "image not found");
+                    operation.Set("CAMERA_SCAN_RETURN_CODE", "image not found");
                 }
             }
         }
@@ -361,9 +343,9 @@ namespace ScanAPP
         string filePath;
         Settings settings;
 
-        public SettingsOperation(string cameraFolderPath)
+        public SettingsOperation(string settingsFilePath)
         {
-            filePath = cameraFolderPath + @"\settings.xml";
+            filePath = settingsFilePath;
             settings = XmlSerializerUtil.Deserilaze<Settings>(filePath, "SETTINGS");
         }
 
@@ -383,8 +365,8 @@ namespace ScanAPP
                     return settings.SCAN_PHOTO_MODE;
                 case "IMAGE_FILE_EXISTS":
                     return settings.IMAGE_FILE_EXISTS;
-                case "CAMERA_SCAN_ERROR_CODE":
-                    return settings.CAMERA_SCAN_ERROR_CODE;
+                case "CAMERA_SCAN_RETURN_CODE":
+                    return settings.CAMERA_SCAN_RETURN_CODE;
                 default:
                     return "";
             }
@@ -412,8 +394,8 @@ namespace ScanAPP
                 case "IMAGE_FILE_EXISTS":
                     settings.IMAGE_FILE_EXISTS = value;
                     break;
-                case "CAMERA_SCAN_ERROR_CODE":
-                    settings.CAMERA_SCAN_ERROR_CODE = value;
+                case "CAMERA_SCAN_RETURN_CODE":
+                    settings.CAMERA_SCAN_RETURN_CODE = value;
                     break;
                 default:
                     break;
@@ -452,7 +434,7 @@ namespace ScanAPP
             // CamScanBadSequence 9003 呼び出しシーケンスエラー
             // CamScanHardwareFailed 9100 ハードウェア処理エラー
             // CamScanNotReleased 9200 リソース解放エラー
-            public string CAMERA_SCAN_ERROR_CODE { get; set; }
+            public string CAMERA_SCAN_RETURN_CODE { get; set; }
         }
     }
 
@@ -541,18 +523,6 @@ namespace ScanAPP
                         }
                     }
                 }
-            }
-        }
-
-        public static byte[] DeriveKeyFromPassword(string password, int keySize)
-        {
-            // Generate salt
-            byte[] salt = Encoding.UTF8.GetBytes("your-random-salt");
-
-            // Derive key from password using PBKDF2 (Rfc2898DeriveBytes)
-            using (var keyDerivationFunction = new Rfc2898DeriveBytes(password, salt, 10000))
-            {
-                return keyDerivationFunction.GetBytes(keySize);
             }
         }
     }

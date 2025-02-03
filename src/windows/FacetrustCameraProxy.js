@@ -1,228 +1,163 @@
-var imageFileName, settingsFileName, cameraFolderPath, imageFilePath, settingsFilePath;
+var BIZ = require('./bizHandler');
+
+var { CODE_MAP, ARG_KEYS,
+    PATH, hasCode,
+    getValue, isOcrAllowed,
+    existsFile, readFileTxtData,
+    saveFileTxtData, jsonToXml,
+    xmlToJson, deserialize,
+    getErrorResult, getCancelResult } = BIZ;
+var cameraFolderPath, imageFilePath, settingsFilePath;
+var personalIdentifyDocuments, cameraDiv, cameraShutdownSeconds;
 
 exports.startCamera = function (successCallback, errorCallback, args) {
-    // if (!(args && args[0])) { 
-    //     return errorCallback();
-    // }
-    
-    imageFileName = 'imagebase64.txt';
-    settingsFileName = 'settings.xml';
-    cameraFolderPath = cordova.file.dataDirectory + 'camera';
-    imageFilePath = cameraFolderPath + '/' + imageFileName;
-    settingsFilePath = cameraFolderPath + '/' + settingsFileName;
+
+    // SF-001:初期化
+    cameraFolderPath = cordova.file.dataDirectory + PATH.CAMERA_FOLDER;
+    imageFilePath = cameraFolderPath + '/' + PATH.IMAGE_FILE_NAME;
+    settingsFilePath = cameraFolderPath + '/' + PATH.SETTINGS_FILE_NAME;
+
+    // SF-001:入力パラメータチェック
+    var error = checkArg(args[0]);
+    if (error) {
+        return errorCallback(error);
+    }
 
     var getScanInfoSuccessCallback = function (scanInfo) {
         successCallback(scanInfo);
     };
     var launchCameraAppSuccessCallback = function () {
+        // SF-004:設定ファイル監視
         getScanInfo(getScanInfoSuccessCallback, errorCallback);
     };
     var writeSettingsSuccessCallback = function () {
+        // SF-001:DynaEyeライブラリ起動
         launchCameraApp(launchCameraAppSuccessCallback, errorCallback);
     };
-    writeSettings(args[0], writeSettingsSuccessCallback, errorCallback);
+    // SF-001:設定ファイル初期化
+    writeSettings(writeSettingsSuccessCallback, errorCallback);
 };
 
-function launchCameraApp (successCallback, errorCallback) {
+function checkArg(arg) {
+    if (!(arg)) {
+        return getErrorResult('IC00_0012');
+    }
+    if (!arg.hasOwnProperty(ARG_KEYS[0])) {
+        return getErrorResult('IC00_0001');
+    }
+    if (!hasCode(CODE_MAP['DOC_TYPE_OCR'], arg[ARG_KEYS[0]])) {
+        return getErrorResult('IC00_0002');
+    }
+    if (!arg.hasOwnProperty(ARG_KEYS[1])) {
+        return getErrorResult('IC00_0003');
+    }
+    if (!hasCode(CODE_MAP['CAMERA_DIV'], arg[ARG_KEYS[1]])) {
+        return getErrorResult('IC00_0004');
+    }
+    if (!arg.hasOwnProperty(ARG_KEYS[2])) {
+        return getErrorResult('IC00_0005');
+    }
+    if (!(arg[ARG_KEYS[2]] >= 1 && arg[ARG_KEYS[2]] <= 999)) {
+        return getErrorResult('IC00_0006');
+    }
+    if (arg[ARG_KEYS[1]] === '1' && !isOcrAllowed(arg[ARG_KEYS[0]])) {
+        return getErrorResult('IC00_0007', [ARG_KEYS[0], ARG_KEYS[1]]);
+    }
+    personalIdentifyDocuments = arg[ARG_KEYS[0]];
+    cameraDiv = arg[ARG_KEYS[1]];
+    cameraShutdownSeconds = arg[ARG_KEYS[2]];
+}
+
+function launchCameraApp(successCallback, errorCallback) {
     if (window.Windows && Windows.ApplicationModel.FullTrustProcessLauncher) {
         try {
             Windows.ApplicationModel.FullTrustProcessLauncher.launchFullTrustProcessForCurrentAppAsync();
-            var checkCameraStatus = function () {
-                readSettings(function (settings) {
-                    if (settings && settings['CAMERA_SCREEN_STATUS'] === '0') {
-                        return successCallback();
-                    }
-                    setTimeout(checkCameraStatus, 500);
-                }, errorCallback);
-            };
-            setTimeout(checkCameraStatus, 500);
-        } catch (error) {
-            errorCallback(error);
+            setTimeout(successCallback, 500);
+        } catch (e) {
+            errorCallback(getErrorResult('IC00_0013'));
         }
     } else {
-        errorCallback();
+        errorCallback(getErrorResult('IC00_0013'));
     }
 }
 
-function getScanInfo (successCallback, errorCallback) {
+function getScanInfo(successCallback, errorCallback) {
+    var MAX_RETRY_COUNT = cameraShutdownSeconds / 0.5;
+    var count = 0;
     var tryGetScanInfo = function () {
+        count++;
         readSettings(function (settings) {
-            if (settings) {
-                var { CAMERA_SCREEN_STATUS, IMAGE_FILE_EXISTS, SCAN_PHOTO_MODE, CAMERA_SCAN_ERROR_CODE } = settings;
-                if (CAMERA_SCREEN_STATUS === '0' && IMAGE_FILE_EXISTS !== '0' && CAMERA_SCAN_ERROR_CODE !== '1') {
+            var { CAMERA_SCAN_RETURN_CODE, ERROR_CODE } = settings;
+            if (CAMERA_SCAN_RETURN_CODE === '1') {
+                return errorCallback(getCancelResult());
+            } else if (CAMERA_SCAN_RETURN_CODE === '0') {
+
+            } else if (CAMERA_SCAN_RETURN_CODE === '') {
+                if (count <= MAX_RETRY_COUNT) {
                     setTimeout(tryGetScanInfo, 500);
-                } else if (IMAGE_FILE_EXISTS === '0') {
-                    return readFileTxtData(imageFilePath, (image) => {
-                        return successCallback({ mode: Number(SCAN_PHOTO_MODE), image });
-                    }, errorCallback);
-                } else if (CAMERA_SCAN_ERROR_CODE === '1') {
-                    return errorCallback('cancelCallback');
-                } else if (CAMERA_SCREEN_STATUS === '1') {
-                    return errorCallback();
                 } else {
-                    return errorCallback();
+                    return errorCallback(getErrorResult('IC00_0015'));
                 }
             } else {
-                return errorCallback();
+                return errorCallback(getErrorResult(ERROR_CODE, CAMERA_SCAN_RETURN_CODE));
             }
+
+            // if (CAMERA_SCREEN_STATUS === '0' && IMAGE_FILE_EXISTS !== '0' && CAMERA_SCAN_ERROR_CODE !== '1') {
+            //     setTimeout(tryGetScanInfo, 500);
+            // } else if (IMAGE_FILE_EXISTS === '0') {
+            //     return readFileTxtData(imageFilePath, (image) => {
+            //         return successCallback({ mode: Number(SCAN_PHOTO_MODE), image });
+            //     }, errorCallback);
+            // } else if (CAMERA_SCAN_ERROR_CODE === '1') {
+            //     return errorCallback('cancelCallback');
+            // } else if (CAMERA_SCREEN_STATUS === '1') {
+            //     return errorCallback();
+            // } else {
+            //     return errorCallback();
+            // }
         }, errorCallback);
     }
     tryGetScanInfo();
 }
 
-function writeSettings (params, successCallback, errorCallback) {
+function writeSettings(successCallback, errorCallback) {
     var settings = {
         'SETTINGS': {
-            'PERSONAL_IDENTIFY_DOCUMENTS': getDocumentName(params['PERSONAL_IDENTIFY_DOCUMENTS']),
-            'CAMERA_MODE': params['CAMERA_MODE'],
-            'CAMERA_SHUTDOWN_SECONDS': params['CAMERA_SHUTDOWN_SECONDS'],
-            'CAMERA_SCREEN_STATUS': '',
-            'IMAGE_FILE_EXISTS': '',
-            'SCAN_PHOTO_MODE': '',
-            'CAMERA_SCAN_ERROR_CODE': '',
+            'PERSONAL_IDENTIFY_DOCUMENTS': getValue(CODE_MAP['DOC_TYPE_OCR'], personalIdentifyDocuments),
+            'CAMERA_DIV': cameraDiv,
+            'CAMERA_SHUTDOWN_SECONDS': cameraShutdownSeconds,
+            'CAMERA_SCAN_RETURN_CODE': '',
+            'ERROR_CODE': ''
         }
     };
-    var xmlString = jsonToXml(settings);
-    saveFileTxtData(cameraFolderPath, settingsFileName, xmlString, successCallback, errorCallback);
+    var resolveErrorCallback = function () {
+        errorCallback(getErrorResult('IC00_0009'));
+    };
+    var writeErrorCallback = function () {
+        errorCallback(getErrorResult('IC00_0008'));
+    };
+    saveFileTxtData(cameraFolderPath, PATH.SETTINGS_FILE_NAME, jsonToXml(settings), successCallback, resolveErrorCallback, writeErrorCallback);
 }
 
-function readSettings (successCallback, errorCallback) {
+function readSettings(successCallback, errorCallback) {
     var readFileTxtDataSuccessCallback = function (xmlString) {
-        if (!xmlString) return errorCallback();
         var xmlDoc = deserialize(xmlString);
-        if (!xmlDoc) return errorCallback();
-
-        var xmlObj = {};
-        var rootElement = xmlDoc.documentElement;
-        for (let i = 0; i < rootElement.children.length; i++) {
-            const child = rootElement.children[i];
-            const elementName = child.nodeName;
-            const elementValue = child.textContent || null;
-            xmlObj[elementName] = elementValue;
-        }
-        return successCallback(xmlObj);
+        if (!xmlDoc) return errorCallback(getErrorResult('IC00_0016'));
+        return successCallback(xmlToJson(xmlDoc));
+    };
+    var resolveErrorCallback = function () {
+        errorCallback(getErrorResult('IC00_0010'));
+    };
+    var readErrorCallback = function () {
+        errorCallback(getErrorResult('IC00_0014'));
     };
     var existsFileSuccessCallback = function () {
-        readFileTxtData(settingsFilePath, readFileTxtDataSuccessCallback, errorCallback);
+        readFileTxtData(settingsFilePath, readFileTxtDataSuccessCallback, resolveErrorCallback, readErrorCallback);
     };
-    existsFile(settingsFilePath, existsFileSuccessCallback, errorCallback);
-}
-
-/**
- * ファイル・フォルダ存在確認
- * @param  {string} path - 存在確認対象パス(ファイル・ディレクトリ)
- * @param  {any} successCallback - 処理成功時コールバック
- * @param  {any} errorCallback - 処理成功時コールバック
- */
-function existsFile (path, successCallback, errorCallback) {
-    window.resolveLocalFileSystemURL(path, successCallback, errorCallback);
-}
-
-/**
- * TXTデータのファイル読取り処理
- * @param  {string} filePath - TXTデータファイルパス
- * @param  {any} successCallback - 処理成功時コールバック
- * @param  {any} errorCallback - 処理成功時コールバック
- */
-function readFileTxtData (filePath, successCallback, errorCallback) {
-    window.resolveLocalFileSystemURL(filePath, function (fileEntry) {
-        fileEntry.file(function (file) {
-            var reader = new FileReader();
-            reader.onloadend = function (e) {
-                // 処理成功
-                successCallback(reader.result);
-            };
-            reader.readAsText(file);
-        }, function (error) {
-            // 処理失敗
-            errorCallback(error);
-        });
-    }, function (error) {
-        // 処理失敗
-        errorCallback(error);
-    });
-}
-
-/**
- * TXTデータのファイル保存処理
- * @param  {string} dirPath - 保存先ファイルパス
- * @param  {string} fileName - 保存先ファイル名
- * @param  {string} txtData - TXT保存文字列
- * @param  {any} successCallback - 処理成功時コールバック
- * @param  {any} errorCallback - 処理成功時コールバック
- */
-function saveFileTxtData (dirPath, fileName, txtData, successCallback, errorCallback) {
-    var strSrc = [txtData];
-    // TXT形式データのBlob型変換
-    var dataBlob = new Blob(strSrc, { type: 'text/plain' });
-    window.resolveLocalFileSystemURL(dirPath, function (dir) {
-        // ファイルシステムオプション
-        var options = {
-            exclusive: false,
-            create: true
-        };
-        dir.getFile(fileName, options, function (file) {
-            file.createWriter(function (fileWriter) {
-                fileWriter.write(dataBlob);
-                // 処理成功
-                successCallback();
-            }, function (e) {
-                // ファイルシステムエラーコード情報取得
-                var error = fileSystemErrorHandler(e);
-                // 処理失敗
-                errorCallback(error);
-            });
-        });
-    }, function (e) {
-        // ファイルシステムエラーコード情報取得
-        var error = fileSystemErrorHandler(e);
-        // 処理失敗
-        errorCallback(error);
-    });
-}
-
-function jsonToXml(json) {
-    let xml = '<?xml version="1.0" encoding="UTF-8" ?>\n';
-    function buildXml(obj) {
-        let result = '';
-        
-        for (const key in obj) {
-            if (obj.hasOwnProperty(key)) {
-                if (typeof obj[key] === 'object' && obj[key] !== null) {
-                    result += `<${key}>\n${buildXml(obj[key])}</${key}>\n`;
-                } else {
-                    result += `<${key}>${obj[key]}</${key}>\n`;
-                }
-            }
-        }
-        return result;
-    }
-    xml += buildXml(json);
-    return xml;
-}
-
-function serialize (xmlDoc) {
-    var serializer = new XMLSerializer();
-    return serializer.serializeToString(xmlDoc);
-}
-
-function deserialize (xmlString) {
-    var parser = new DOMParser();
-    var xmlDoc = parser.parseFromString(xmlString, "application/xml");
-    if (xmlDoc.querySelector("parsererror")) {
-        return '';
-    } else {
-        return xmlDoc;
-    }
-}
-
-function getDocumentName (kbn) {
-    switch (kbn) {
-        case '01':
-            return 'マイナンバーカード（表面）';
-        default:
-            return '';
-    }
+    var existsFileErrorCallback = function () {
+        errorCallback(getErrorResult('IC00_0010'));
+    };
+    existsFile(settingsFilePath, existsFileSuccessCallback, existsFileErrorCallback);
 }
 
 cordova.commandProxy.add('FacetrustCamera', exports);

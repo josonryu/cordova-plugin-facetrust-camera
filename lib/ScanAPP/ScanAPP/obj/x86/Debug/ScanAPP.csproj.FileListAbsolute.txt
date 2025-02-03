@@ -1,0 +1,17 @@
+C:\作業\検証用\cordova-plugin-facetrust-camera\lib\ScanAPP\ScanAPP\bin\x86\Debug\ScanAPP.exe.config
+C:\作業\検証用\cordova-plugin-facetrust-camera\lib\ScanAPP\ScanAPP\bin\x86\Debug\ScanAPP.exe.manifest
+C:\作業\検証用\cordova-plugin-facetrust-camera\lib\ScanAPP\ScanAPP\bin\x86\Debug\ScanAPP.application
+C:\作業\検証用\cordova-plugin-facetrust-camera\lib\ScanAPP\ScanAPP\bin\x86\Debug\ScanAPP.exe
+C:\作業\検証用\cordova-plugin-facetrust-camera\lib\ScanAPP\ScanAPP\bin\x86\Debug\ScanAPP.pdb
+C:\作業\検証用\cordova-plugin-facetrust-camera\lib\ScanAPP\ScanAPP\bin\x86\Debug\Windows.Foundation.UniversalApiContract.winmd
+C:\作業\検証用\cordova-plugin-facetrust-camera\lib\ScanAPP\ScanAPP\obj\x86\Debug\ScanAPP.csprojAssemblyReference.cache
+C:\作業\検証用\cordova-plugin-facetrust-camera\lib\ScanAPP\ScanAPP\obj\x86\Debug\ScanAPP.CustomizeForm.resources
+C:\作業\検証用\cordova-plugin-facetrust-camera\lib\ScanAPP\ScanAPP\obj\x86\Debug\ScanAPP.Form1.resources
+C:\作業\検証用\cordova-plugin-facetrust-camera\lib\ScanAPP\ScanAPP\obj\x86\Debug\ScanAPP.Properties.Resources.resources
+C:\作業\検証用\cordova-plugin-facetrust-camera\lib\ScanAPP\ScanAPP\obj\x86\Debug\ScanAPP.csproj.GenerateResource.cache
+C:\作業\検証用\cordova-plugin-facetrust-camera\lib\ScanAPP\ScanAPP\obj\x86\Debug\ScanAPP.csproj.CoreCompileInputs.cache
+C:\作業\検証用\cordova-plugin-facetrust-camera\lib\ScanAPP\ScanAPP\obj\x86\Debug\ScanAPP.exe.manifest
+C:\作業\検証用\cordova-plugin-facetrust-camera\lib\ScanAPP\ScanAPP\obj\x86\Debug\ScanAPP.application
+C:\作業\検証用\cordova-plugin-facetrust-camera\lib\ScanAPP\ScanAPP\obj\x86\Debug\ScanAPP.csproj.CopyComplete
+C:\作業\検証用\cordova-plugin-facetrust-camera\lib\ScanAPP\ScanAPP\obj\x86\Debug\ScanAPP.exe
+C:\作業\検証用\cordova-plugin-facetrust-camera\lib\ScanAPP\ScanAPP\obj\x86\Debug\ScanAPP.pdb
