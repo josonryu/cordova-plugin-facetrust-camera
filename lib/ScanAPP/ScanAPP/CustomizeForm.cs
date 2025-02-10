@@ -26,10 +26,10 @@ namespace ScanAPP
             InitializeComponent();
             this.titleLabel.Text = title;
             // スキャンモードの場合、枠内の文言は表示しない
-            // if (Const.CAMERA_MODE_SCAN.Equals(control))
-            // {
-            // this.msgToFrameLabel.Visible = false;
-            // }
+            if (control == "0")
+            {
+                this.msgToFrameLabel.Visible = false;
+            }
         }
 
         private void CustomizeForm_Load(object sender, EventArgs e)

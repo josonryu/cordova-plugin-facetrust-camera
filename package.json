@@ -15,7 +15,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "cordova-plugin-facetrust-camera": "file:",
     "cordova-plugin-file": "8.1.0"
   }
 }

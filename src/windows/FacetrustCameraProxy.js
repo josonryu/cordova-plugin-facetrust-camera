@@ -1,20 +1,23 @@
 var BIZ = require('./bizHandler');
 
-var { CODE_MAP, ARG_KEYS,
-    PATH, hasCode,
+var { CODE_MAP, ARG_KEYS, PATH,
+    hasCode, hasValue,
     getValue, isOcrAllowed,
-    existsFile, readFileTxtData,
-    saveFileTxtData, jsonToXml,
-    xmlToJson, deserialize,
-    getErrorResult, getCancelResult } = BIZ;
-var cameraFolderPath, imageFilePath, settingsFilePath;
-var personalIdentifyDocuments, cameraDiv, cameraShutdownSeconds;
+    readFileTxtData, saveFileTxtData,
+    jsonToXml, xmlToJson,
+    deserialize, decrypt,
+    getErrorResult, getCancelResult,
+    getSuccessResult, removeFile,
+    createDirectory } = BIZ;
+var { DOC_TYPE_OCR, RESULT_CODE, CAMERA_DIV } = CODE_MAP;
+var cameraFolderPath, resultFilePath, settingsFilePath;
+var personalIdentifyDocuments, cameraDiv, cameraTimeoutSeconds;
 
 exports.startCamera = function (successCallback, errorCallback, args) {
 
     // SF-001:初期化
     cameraFolderPath = cordova.file.dataDirectory + PATH.CAMERA_FOLDER;
-    imageFilePath = cameraFolderPath + '/' + PATH.IMAGE_FILE_NAME;
+    resultFilePath = cameraFolderPath + '/' + PATH.RESULT_FILE_NAME;
     settingsFilePath = cameraFolderPath + '/' + PATH.SETTINGS_FILE_NAME;
 
     // SF-001:入力パラメータチェック
@@ -23,12 +26,13 @@ exports.startCamera = function (successCallback, errorCallback, args) {
         return errorCallback(error);
     }
 
-    var getScanInfoSuccessCallback = function (scanInfo) {
-        successCallback(scanInfo);
+    var getCameraResultSuccessCallback = function (cameraResult) {
+        // clearCameraInfo();
+        successCallback(cameraResult);
     };
     var launchCameraAppSuccessCallback = function () {
         // SF-004:設定ファイル監視
-        getScanInfo(getScanInfoSuccessCallback, errorCallback);
+        getCameraResult(getCameraResultSuccessCallback, errorCallback);
     };
     var writeSettingsSuccessCallback = function () {
         // SF-001:DynaEyeライブラリ起動
@@ -45,27 +49,24 @@ function checkArg(arg) {
     if (!arg.hasOwnProperty(ARG_KEYS[0])) {
         return getErrorResult('IC00_0001');
     }
-    if (!hasCode(CODE_MAP['DOC_TYPE_OCR'], arg[ARG_KEYS[0]])) {
+    if (!hasCode(DOC_TYPE_OCR, arg[ARG_KEYS[0]])) {
         return getErrorResult('IC00_0002');
     }
     if (!arg.hasOwnProperty(ARG_KEYS[1])) {
         return getErrorResult('IC00_0003');
     }
-    if (!hasCode(CODE_MAP['CAMERA_DIV'], arg[ARG_KEYS[1]])) {
+    if (!hasValue(CAMERA_DIV, arg[ARG_KEYS[1]])) {
         return getErrorResult('IC00_0004');
     }
-    if (!arg.hasOwnProperty(ARG_KEYS[2])) {
-        return getErrorResult('IC00_0005');
-    }
-    if (!(arg[ARG_KEYS[2]] >= 1 && arg[ARG_KEYS[2]] <= 999)) {
+    if (arg.hasOwnProperty(ARG_KEYS[2]) && arg[ARG_KEYS[2]] && (arg[ARG_KEYS[2]] < 1 || arg[ARG_KEYS[2]] > 999)) {
         return getErrorResult('IC00_0006');
     }
-    if (arg[ARG_KEYS[1]] === '1' && !isOcrAllowed(arg[ARG_KEYS[0]])) {
+    if (arg[ARG_KEYS[1]] === CAMERA_DIV.OCR && !isOcrAllowed(arg[ARG_KEYS[0]])) {
         return getErrorResult('IC00_0007', [ARG_KEYS[0], ARG_KEYS[1]]);
     }
     personalIdentifyDocuments = arg[ARG_KEYS[0]];
     cameraDiv = arg[ARG_KEYS[1]];
-    cameraShutdownSeconds = arg[ARG_KEYS[2]];
+    cameraTimeoutSeconds = arg[ARG_KEYS[2]] || 300;
 }
 
 function launchCameraApp(successCallback, errorCallback) {
@@ -81,43 +82,45 @@ function launchCameraApp(successCallback, errorCallback) {
     }
 }
 
-function getScanInfo(successCallback, errorCallback) {
-    var MAX_RETRY_COUNT = cameraShutdownSeconds / 0.5;
+function getCameraResult(successCallback, errorCallback) {
+    var MAX_RETRY_COUNT = cameraTimeoutSeconds / 0.5;
     var count = 0;
-    var tryGetScanInfo = function () {
+    var tryGetCameraResult = function () {
         count++;
         readSettings(function (settings) {
-            var { CAMERA_SCAN_RETURN_CODE, ERROR_CODE } = settings;
-            if (CAMERA_SCAN_RETURN_CODE === '1') {
+            var { DYNAEYE_RETURN_CODE, CAMERA_ERROR_CODE } = settings;
+            if (DYNAEYE_RETURN_CODE === RESULT_CODE.CANCEL) {
                 return errorCallback(getCancelResult());
-            } else if (CAMERA_SCAN_RETURN_CODE === '0') {
-
-            } else if (CAMERA_SCAN_RETURN_CODE === '') {
-                if (count <= MAX_RETRY_COUNT) {
-                    setTimeout(tryGetScanInfo, 500);
+            } else if (DYNAEYE_RETURN_CODE === RESULT_CODE.SUCCESS) {
+                if (CAMERA_ERROR_CODE === '') {
+                    readResult(function (result) {
+                        try {
+                            if (cameraDiv === CAMERA_DIV.OCR) {
+                                result['OCR'] = decrypt(result['OCR']);
+                            }
+                            result['PIC'] = decrypt(result['PIC']);
+                            return successCallback(getSuccessResult(result));
+                        } catch (error) {
+                            return errorCallback(getErrorResult('IC00_0011'));
+                        }
+                    }, function () { });
                 } else {
-                    return errorCallback(getErrorResult('IC00_0015'));
+                    return errorCallback(getErrorResult(CAMERA_ERROR_CODE));
+                }
+            } else if (DYNAEYE_RETURN_CODE === '') {
+                if (CAMERA_ERROR_CODE === '') {
+                    if (count <= MAX_RETRY_COUNT) {
+                        setTimeout(tryGetCameraResult, 500);
+                    } else {
+                        return errorCallback(getErrorResult('IC00_0015'));
+                    }
                 }
             } else {
-                return errorCallback(getErrorResult(ERROR_CODE, CAMERA_SCAN_RETURN_CODE));
+                return errorCallback(getErrorResult(CAMERA_ERROR_CODE, DYNAEYE_RETURN_CODE));
             }
-
-            // if (CAMERA_SCREEN_STATUS === '0' && IMAGE_FILE_EXISTS !== '0' && CAMERA_SCAN_ERROR_CODE !== '1') {
-            //     setTimeout(tryGetScanInfo, 500);
-            // } else if (IMAGE_FILE_EXISTS === '0') {
-            //     return readFileTxtData(imageFilePath, (image) => {
-            //         return successCallback({ mode: Number(SCAN_PHOTO_MODE), image });
-            //     }, errorCallback);
-            // } else if (CAMERA_SCAN_ERROR_CODE === '1') {
-            //     return errorCallback('cancelCallback');
-            // } else if (CAMERA_SCREEN_STATUS === '1') {
-            //     return errorCallback();
-            // } else {
-            //     return errorCallback();
-            // }
         }, errorCallback);
     }
-    tryGetScanInfo();
+    tryGetCameraResult();
 }
 
 function writeSettings(successCallback, errorCallback) {
@@ -125,18 +128,21 @@ function writeSettings(successCallback, errorCallback) {
         'SETTINGS': {
             'PERSONAL_IDENTIFY_DOCUMENTS': getValue(CODE_MAP['DOC_TYPE_OCR'], personalIdentifyDocuments),
             'CAMERA_DIV': cameraDiv,
-            'CAMERA_SHUTDOWN_SECONDS': cameraShutdownSeconds,
-            'CAMERA_SCAN_RETURN_CODE': '',
-            'ERROR_CODE': ''
+            'CAMERA_TIMEOUT_SECONDS': cameraTimeoutSeconds,
+            'DYNAEYE_RETURN_CODE': '',
+            'CAMERA_ERROR_CODE': ''
         }
     };
     var resolveErrorCallback = function () {
-        errorCallback(getErrorResult('IC00_0009'));
-    };
-    var writeErrorCallback = function () {
         errorCallback(getErrorResult('IC00_0008'));
     };
-    saveFileTxtData(cameraFolderPath, PATH.SETTINGS_FILE_NAME, jsonToXml(settings), successCallback, resolveErrorCallback, writeErrorCallback);
+    var writeErrorCallback = function () {
+        errorCallback(getErrorResult('IC00_0009'));
+    };
+    var createDirectorySuccessCallback = function () {
+        saveFileTxtData(cameraFolderPath, PATH.SETTINGS_FILE_NAME, jsonToXml(settings), successCallback, resolveErrorCallback, writeErrorCallback);
+    };
+    createDirectory(cordova.file.dataDirectory, PATH.CAMERA_FOLDER, createDirectorySuccessCallback, resolveErrorCallback);
 }
 
 function readSettings(successCallback, errorCallback) {
@@ -145,19 +151,40 @@ function readSettings(successCallback, errorCallback) {
         if (!xmlDoc) return errorCallback(getErrorResult('IC00_0016'));
         return successCallback(xmlToJson(xmlDoc));
     };
-    var resolveErrorCallback = function () {
-        errorCallback(getErrorResult('IC00_0010'));
+    var resolveErrorCallback = function (error) {
+        if (error.code === FileError.NOT_FOUND_ERR) {
+            errorCallback(getErrorResult('IC00_0010'));
+        } else {
+            errorCallback(getErrorResult('IC00_0014'));
+        }
     };
     var readErrorCallback = function () {
         errorCallback(getErrorResult('IC00_0014'));
     };
-    var existsFileSuccessCallback = function () {
-        readFileTxtData(settingsFilePath, readFileTxtDataSuccessCallback, resolveErrorCallback, readErrorCallback);
+    readFileTxtData(settingsFilePath, readFileTxtDataSuccessCallback, resolveErrorCallback, readErrorCallback);
+}
+
+function readResult(successCallback, errorCallback) {
+    var readFileTxtDataSuccessCallback = function (xmlString) {
+        var xmlDoc = deserialize(xmlString);
+        // if (!xmlDoc) return errorCallback();
+        return successCallback(xmlToJson(xmlDoc));
     };
-    var existsFileErrorCallback = function () {
-        errorCallback(getErrorResult('IC00_0010'));
+    var resolveErrorCallback = function () {
+        // errorCallback();
     };
-    existsFile(settingsFilePath, existsFileSuccessCallback, existsFileErrorCallback);
+    var readErrorCallback = function () {
+        // errorCallback();
+    };
+    readFileTxtData(resultFilePath, readFileTxtDataSuccessCallback, resolveErrorCallback, readErrorCallback);
+}
+
+function clearCameraInfo() {
+    removeFileErrorCallback = function () {
+
+    }
+    removeFile(settingsFilePath, function () { }, removeFileErrorCallback);
+    removeFile(resultFilePath, function () { }, removeFileErrorCallback);
 }
 
 cordova.commandProxy.add('FacetrustCamera', exports);

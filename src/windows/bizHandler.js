@@ -1,4 +1,4 @@
-var crypto = require('crypto');
+var CryptoJS = require('./crypto-js');
 
 var bizHandler = {
     MSG_MAP: {
@@ -6,8 +6,7 @@ var bizHandler = {
         'IC00_0002': 'DynaEyeライブラリ起動パラメタ「PERSONAL_IDENTIFY_DOCUMENTS」の設定値が不正です。\n「01,02,03,04,05,06,07,08,09,10,11,12,13,14,15,16」のいずれかを設定してください。',
         'IC00_0003': 'DynaEyeライブラリ起動パラメタ「CAMERA_DIV」が必須です。',
         'IC00_0004': 'DynaEyeライブラリ起動パラメタ「CAMERA_DIV」の設定値が不正です。\n「0,1」のいずれかを設定してください。',
-        'IC00_0005': 'DynaEyeライブラリ起動パラメタ「CAMERA_SHUTDOWN_SECONDS」が必須です。',
-        'IC00_0006': 'DynaEyeライブラリ起動パラメタ「CAMERA_SHUTDOWN_SECONDS」の設定値が不正です。\n「1~999」のいずれかを設定してください。',
+        'IC00_0006': 'DynaEyeライブラリ起動パラメタ「CAMERA_TIMEOUT_SECONDS」の設定値が不正です。\n「1~999」を設定してください。',
         'IC00_0007': 'DynaEyeライブラリ起動パラメタの組み合わせエラーです。\n・対象パラメタ：「{0}」、「{1}」\n「{0}」が「08,09,10,11,12,13,14,15,16」のいずれかを設定された場合、「{1}」は「0」を設定してください。',
         'IC00_0008': 'ライブラリ設定ファイル（settings.xml）の作成に失敗しました。',
         'IC00_0009': 'ライブラリ設定ファイル（settings.xml）の更新に失敗しました。',
@@ -26,7 +25,9 @@ var bizHandler = {
         'IC99_0001': 'ライブラリ設定ファイル（settings.xml）が存在しません。DynaEye初期化が失敗しました。',
         'IC99_0002': 'ライブラリ設定ファイル（settings.xml）のフォーマットが不正です。DynaEye初期化が失敗しました。',
         'IC99_0003': 'ライブラリ設定ファイル（settings.xml）の必須エレメントが設定されていません。DynaEye初期化が失敗しました。',
-        'IC99_0004': '削除処理が失敗しました。'
+        'IC99_0004': '削除処理が失敗しました。',
+        'IC99_0005': 'ライブラリ設定ファイル（settings.xml）の読み込み中にエラーが発生しました。DynaEye初期化が失敗しました。',
+        'IC99_0006': 'ライブラリ設定ファイル（settings.xml）が書き込み不可です。DynaEye初期化が失敗しました。',
     },
     CODE_MAP: {
         'DOC_TYPE_OCR': {
@@ -53,8 +54,8 @@ var bizHandler = {
             'ERROR': '9' // 失敗
         },
         'CAMERA_DIV': {
-            '0': 'スキャンモード',
-            '1': 'OCRモード'
+            'SCAN': '0', // スキャンモード
+            'OCR': '1' // OCRモード
         },
         'PHOTO_MODE': {
             '1': '自動モード',
@@ -62,29 +63,76 @@ var bizHandler = {
             '3': 'タイマーモード'
         }
     },
-    ARG_KEYS: ['PERSONAL_IDENTIFY_DOCUMENTS', 'CAMERA_DIV', 'CAMERA_SHUTDOWN_SECONDS'],
+    ARG_KEYS: ['PERSONAL_IDENTIFY_DOCUMENTS', 'CAMERA_DIV', 'CAMERA_TIMEOUT_SECONDS'],
     PATH: {
-        IMAGE_FILE_NAME: 'result.txt',
+        RESULT_FILE_NAME: 'result.xml',
         SETTINGS_FILE_NAME: 'settings.xml',
         CAMERA_FOLDER: 'Documents/appBizFile/camera'
+    },
+    AES: {
+        KEY: "8XYa/2N2Yue1DlfqyZKu7/TSKMFc+MOhe5vlWHh7ZAw=",
+        IV: "CdNuaCStKx9ATFKJ4OEKAA==",
     },
     hasCode: function (map, code) {
         return map.hasOwnProperty(code);
     },
+    hasValue: function (map, val) {
+        return Object.values(map).includes(val);
+    },
     getValue: function (map, code) {
         return map[code];
     },
-    isOcrAllowed: function (document) {
-        return ['01', '02', '03', '04', '05', '06', '07'].includes(document);
+    isOcrAllowed: function (type) {
+        return ['01', '02', '03', '04', '05', '06', '07'].includes(type);
     },
     /**
-     * ファイル・フォルダ存在確認
-     * @param  {string} path - 存在確認対象パス(ファイル・ディレクトリ)
+     * フォルダ作成処理
+     * フォルダが既に存在しても、新たに作成する事はない。
+     * @param  {string} path - 作成対象対象ディレクトリルートパス
+     * @param  {string} dirName - ディレクトリルートパス配下に作成するディレクトリパス
      * @param  {any} successCallback - 処理成功時コールバック
      * @param  {any} errorCallback - 処理成功時コールバック
      */
-    existsFile: function (path, successCallback, errorCallback) {
-        window.resolveLocalFileSystemURL(path, successCallback, errorCallback);
+    createDirectory: function (path, dirName, successCallback, errorCallback) {
+        // ファイルシステム取得成功時コールバック処理
+        var resolveSuccessCallback = function (fs) {
+            // ファイルシステム取得オプション
+            var options = {
+                exclusive: false,
+                create: true
+            };
+            var createDir = function (dirEntry, folders) {
+                if (folders[0] == '.' || folders[0] == '') {
+                    folders = folders.slice(1);
+                }
+                if (folders.length <= 0) {
+                    // 作成実施完了
+                    successCallback();
+                    return;
+                }
+                // 次の階層のディレクトリを取得
+                dirEntry.getDirectory(folders[0], options, function (dirEntry) {
+                    // 作成するディレクトリが存在する場合
+                    if (0 < folders.length) {
+                        // ディレクトリ作成処理を再帰的に呼び出す
+                        createDir(dirEntry, folders.slice(1));
+                    }
+                    else {
+                        // 作成実施完了
+                        successCallback();
+                    }
+                }, errorCallback);
+            };
+            var dirArray = dirName.split('/');
+            if (dirArray[0] == '.' || dirArray[0] == '') {
+                dirArray = dirArray.slice(1);
+            }
+            // ディレクトリ作成処理
+            createDir(fs, dirArray);
+        };
+        // ファイル操作処理
+        window.resolveLocalFileSystemURL(path, resolveSuccessCallback, errorCallback);
+        return;
     },
     /**
      * TXTデータのファイル読取り処理
@@ -133,6 +181,11 @@ var bizHandler = {
             });
         }, resolveErrorCallback);
     },
+    removeFile: function (filePath, successCallback, errorCallback) {
+        window.resolveLocalFileSystemURL(filePath, function (fileEntry) {
+            fileEntry.remove(successCallback, errorCallback);
+        }, errorCallback);
+    },
     jsonToXml: function (json) {
         let xml = '<?xml version="1.0" encoding="UTF-8" ?>\n';
         function buildXml(obj) {
@@ -158,9 +211,10 @@ var bizHandler = {
         for (let i = 0; i < rootElement.children.length; i++) {
             const child = rootElement.children[i];
             const elementName = child.nodeName;
-            const elementValue = child.textContent || null;
+            const elementValue = child.textContent;
             json[elementName] = elementValue;
         }
+        return json;
     },
     deserialize: function (xmlString) {
         var parser = new DOMParser();
@@ -198,12 +252,12 @@ var bizHandler = {
             return msgDef;
         }
     },
-    getErrorResult: function (id, params) {
+    getErrorResult: function (msgId, params) {
         return {
             'RESULT': bizHandler.CODE_MAP.RESULT_CODE.ERROR,
             'ERROR': {
-                'CODE': id,
-                'MESSAGE': bizHandler.getMsg(id, params)
+                'CODE': msgId,
+                'MESSAGE': bizHandler.getMsg(msgId, params)
             }
         };
     },
@@ -213,15 +267,34 @@ var bizHandler = {
             'EEROR': null
         };
     },
-    encrypt: function (plainString, AesKey, AesIV) {
-        var cipher = crypto.createCipheriv("aes-256-cbc", AesKey, AesIV);
-        var encrypted = Buffer.concat([cipher.update(Buffer.from(plainString, "utf8")), cipher.final()]);
-        return encrypted.toString("base64");
+    getSuccessResult: function (result) {
+        return {
+            'RESULT': bizHandler.CODE_MAP.RESULT_CODE.SUCCESS,
+            'ERROR': null,
+            'MODE': result['MODE'],
+            'TYPE': result['TYPE'],
+            'OCR': result['OCR'],
+            'PIC': result['PIC']
+        }
     },
-    decrypt: function (base64String, AesKey, AesIV) {
-        var decipher = crypto.createDecipheriv("aes-256-cbc", AesKey, AesIV);
-        var deciphered = Buffer.concat([decipher.update(Buffer.from(base64String, "base64")), decipher.final()]);
-        return deciphered.toString("utf8");
+    encrypt: function (data) {
+        var keyBytes = CryptoJS.enc.Base64.parse(bizHandler.AES.KEY);
+        var ivBytes = CryptoJS.enc.Base64.parse(bizHandler.AES.IV);
+        var option = { iv: ivBytes, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 };
+        const encrypted = CryptoJS.AES.encrypt(data, keyBytes, option);
+        return encrypted.toString();
+    },
+    decrypt: function (encryptedData) {
+        var keyBytes = CryptoJS.enc.Base64.parse(bizHandler.AES.KEY);
+        var ivBytes = CryptoJS.enc.Base64.parse(bizHandler.AES.IV);
+        var option = { iv: ivBytes, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 };
+        const decrypted = CryptoJS.AES.decrypt(encryptedData, keyBytes, option);
+        return decrypted.toString(CryptoJS.enc.Utf8);
+    },
+    trace: function (msgId) {
+        // var today = new Date();
+        // var date = today.getFullYear() + ('0' + (today.getMonth() + 1)).slice(-2) + ('0' + today.getDate()).slice(-2);
+        // var datetime;
     }
 };
 
