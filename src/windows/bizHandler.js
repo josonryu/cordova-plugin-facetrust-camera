@@ -67,7 +67,7 @@ var bizHandler = {
     PATH: {
         RESULT_FILE_NAME: 'result.xml',
         SETTINGS_FILE_NAME: 'settings.xml',
-        CAMERA_FOLDER: 'Documents/appBizFile/camera'
+        CAMERA_FOLDER: 'Documents/facetrust/camera'
     },
     AES: {
         KEY: "8XYa/2N2Yue1DlfqyZKu7/TSKMFc+MOhe5vlWHh7ZAw=",

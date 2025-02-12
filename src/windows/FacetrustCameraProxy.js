@@ -116,7 +116,7 @@ function getCameraResult(successCallback, errorCallback) {
                     }
                 }
             } else {
-                return errorCallback(getErrorResult(CAMERA_ERROR_CODE, DYNAEYE_RETURN_CODE));
+                return errorCallback(getErrorResult(CAMERA_ERROR_CODE, [DYNAEYE_RETURN_CODE]));
             }
         }, errorCallback);
     }

@@ -31,7 +31,7 @@ namespace ScanAPP
 
         private void InitCamera()
         {
-            cameraFolderPath = Windows.Storage.ApplicationData.Current.LocalFolder.Path + @"\Documents\appBizFile\camera";
+            cameraFolderPath = Windows.Storage.ApplicationData.Current.LocalFolder.Path + @"\Documents\facetrust\camera";
             if (!Directory.Exists(cameraFolderPath))
             {
                 Environment.Exit(9);
