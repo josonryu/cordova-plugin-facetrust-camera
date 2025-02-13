@@ -273,7 +273,7 @@ var bizHandler = {
             'ERROR': null,
             'MODE': result['MODE'],
             'TYPE': result['TYPE'],
-            'OCR': result['OCR'],
+            'OCR': JSON.parse(result['OCR']) || {},
             'PIC': result['PIC']
         }
     },
