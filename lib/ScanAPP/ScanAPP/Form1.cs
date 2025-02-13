@@ -23,7 +23,6 @@ namespace ScanAPP
         string cameraFolderPath;
         SettingsManager sm;
         ResultManager rm;
-        // LogManager logManager;
 
         string personalIdentifyDocuments;
         string cameraDiv;
@@ -38,7 +37,6 @@ namespace ScanAPP
             }
             sm = new SettingsManager(cameraFolderPath);
             rm = new ResultManager(cameraFolderPath);
-            // logManager = new LogManager(cameraFolderPath);
             personalIdentifyDocuments = sm.Get("PERSONAL_IDENTIFY_DOCUMENTS");
             cameraDiv = sm.Get("CAMERA_DIV");
             cameraTimeoutSeconds = double.Parse(sm.Get("CAMERA_TIMEOUT_SECONDS"));
@@ -168,33 +166,30 @@ namespace ScanAPP
                 // BASE64化して格納
                 byte[] byteImage = ms.ToArray();
                 var sigBase64 = Convert.ToBase64String(byteImage);
-                // logManager.Trace(sigBase64);
                 try
                 {
                     string sigBase64Encrypted = AesUtil.Encrypt(sigBase64);
-                    // logManager.Trace(sigBase64Encrypted);
                     rm.Set("MODE", ((int)docInfo.Mode).ToString(), false);
-                    // logManager.Trace(((int)docInfo.Mode).ToString());
                     rm.Set("TYPE", "", false);
                     rm.Set("PIC", sigBase64Encrypted, false);
-                    // logManager.Trace(sigBase64Encrypted);
                     rm.Set("OCR", "", false);
-                    rm.Write();
+                }
+                catch (Exception)
+                {
+                    UpdateStatus("0", "IC01_0002");
+                    PDLCameraScan.Instance.DeinitResource();
+                    Environment.Exit(9);
+                }
 
+                try {
+                    rm.Write();
                     UpdateStatus("0", "");
                     PDLCameraScan.Instance.DeinitResource();
                     Environment.Exit(0);
                 }
-                catch (InvalidOperationException)
+                catch (Exception)
                 {
                     UpdateStatus("0", "IC01_0003");
-                    PDLCameraScan.Instance.DeinitResource();
-                    Environment.Exit(9);
-                }
-                catch (Exception ex)
-                {
-                    // logManager.Trace(ex.ToString());
-                    UpdateStatus("0", "IC01_0002");
                     PDLCameraScan.Instance.DeinitResource();
                     Environment.Exit(9);
                 }
@@ -230,7 +225,6 @@ namespace ScanAPP
                 // BASE64化して格納
                 byte[] byteImage = ms.ToArray();
                 var sigBase64 = Convert.ToBase64String(byteImage);
-                // logManager.Trace(sigBase64);
                 try
                 {
                     string sigBase64Encrypted = AesUtil.Encrypt(sigBase64);
@@ -243,31 +237,28 @@ namespace ScanAPP
                             ""BIRTHDAY"": ""{cardInfo.Birthday.Text}"",
                             ""GENDER"": ""{cardInfo.Gender.Text}""
                         }}";
-                    // logManager.Trace(ocrText);
                     string ocrTextEncrypted = AesUtil.Encrypt(ocrText);
-                    // logManager.Trace(ocrTextEncrypted);
                     rm.Set("MODE", ((int)cardInfo.Mode).ToString(), false);
-                    // logManager.Trace(((int)cardInfo.Mode).ToString());
                     rm.Set("TYPE", ((int)cardInfo.CardType).ToString(), false);
-                    // logManager.Trace(((int)cardInfo.CardType).ToString());
                     rm.Set("PIC", sigBase64Encrypted, false);
                     rm.Set("OCR", ocrTextEncrypted, false);
-                    rm.Write();
+                }
+                catch (Exception)
+                {
+                    UpdateStatus("0", "IC01_0002");
+                    PDLCameraOcr.Instance.DeinitResource();
+                    Environment.Exit(9);
+                }
 
+                try {
+                    rm.Write();
                     UpdateStatus("0", "");
                     PDLCameraOcr.Instance.DeinitResource();
                     Environment.Exit(0);
                 }
-                catch (InvalidOperationException)
+                catch (Exception)
                 {
                     UpdateStatus("0", "IC01_0003");
-                    PDLCameraOcr.Instance.DeinitResource();
-                    Environment.Exit(9);
-                }
-                catch (Exception ex)
-                {
-                    // logManager.Trace(ex.ToString());
-                    UpdateStatus("0", "IC01_0002");
                     PDLCameraOcr.Instance.DeinitResource();
                     Environment.Exit(9);
                 }
@@ -403,17 +394,17 @@ namespace ScanAPP
             lm = new LogManager(parentPath);
             try
             {
-                if (!FileUtil.IsWritable(filePath))
-                {
-                    lm.Trace("IC99_0006");
-                    Environment.Exit(9);
-                }
                 settings = XmlSerializerUtil.Deserialize<Settings>(filePath, "SETTINGS");
                 if (settings.PERSONAL_IDENTIFY_DOCUMENTS == null || 
                     settings.CAMERA_DIV == null || 
                     settings.CAMERA_TIMEOUT_SECONDS == null)
                 {
                     lm.Trace("IC99_0003");
+                    Environment.Exit(9);
+                }
+                if (!FileUtil.IsWritable(filePath))
+                {
+                    lm.Trace("IC99_0006");
                     Environment.Exit(9);
                 }
             }
@@ -568,7 +559,7 @@ namespace ScanAPP
         {
             try
             {
-                XmlSerializerUtil.Serialize(filePath, result, "SETTINGS");
+                XmlSerializerUtil.Serialize(filePath, result, "RESULT");
             }
             catch
             {
