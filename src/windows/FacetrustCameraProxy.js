@@ -151,17 +151,14 @@ function readSettings(successCallback, errorCallback) {
         if (!xmlDoc) return errorCallback(getErrorResult('IC00_0016'));
         return successCallback(xmlToJson(xmlDoc));
     };
-    var resolveErrorCallback = function (error) {
+    var readErrorCallback = function (error) {
         if (error.code === FileError.NOT_FOUND_ERR) {
             errorCallback(getErrorResult('IC00_0010'));
         } else {
             errorCallback(getErrorResult('IC00_0014'));
         }
     };
-    var readErrorCallback = function () {
-        errorCallback(getErrorResult('IC00_0014'));
-    };
-    readFileTxtData(settingsFilePath, readFileTxtDataSuccessCallback, resolveErrorCallback, readErrorCallback);
+    readFileTxtData(settingsFilePath, readFileTxtDataSuccessCallback, readErrorCallback, readErrorCallback);
 }
 
 function readResult(successCallback, errorCallback) {

@@ -145,10 +145,12 @@ var bizHandler = {
         window.resolveLocalFileSystemURL(filePath, function (fileEntry) {
             fileEntry.file(function (file) {
                 var reader = new FileReader();
-                reader.onloadend = function (e) {
+                reader.onload = function (e) {
                     // 処理成功
                     successCallback(reader.result);
                 };
+                // 処理失敗
+                reader.onerror = readErrorCallback;
                 reader.readAsText(file);
             }, readErrorCallback);
         }, resolveErrorCallback);
