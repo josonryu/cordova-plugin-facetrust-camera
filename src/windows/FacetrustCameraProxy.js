@@ -69,10 +69,10 @@ function checkArg(arg) {
     cameraTimeoutSeconds = arg[ARG_KEYS[2]] || 300;
 }
 
-function launchCameraApp(successCallback, errorCallback) {
+async function launchCameraApp(successCallback, errorCallback) {
     if (window.Windows && Windows.ApplicationModel.FullTrustProcessLauncher) {
         try {
-            Windows.ApplicationModel.FullTrustProcessLauncher.launchFullTrustProcessForCurrentAppAsync();
+            await Windows.ApplicationModel.FullTrustProcessLauncher.launchFullTrustProcessForCurrentAppAsync();
             setTimeout(successCallback, 500);
         } catch (e) {
             errorCallback(getErrorResult('IC00_0013'));
