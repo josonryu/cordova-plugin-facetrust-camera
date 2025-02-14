@@ -174,13 +174,11 @@ var bizHandler = {
             };
             dir.getFile(fileName, options, function (file) {
                 file.createWriter(function (fileWriter) {
-                    try {
-                        fileWriter.write(dataBlob);
-                        // 処理成功
-                        successCallback();
-                    } catch (error) {
-                        writeErrorCallback(error);
-                    }
+                    fileWriter.write(dataBlob);
+                    // 処理成功
+                    fileWriter.onwrite = successCallback;
+                    // 処理失敗
+                    fileWriter.onerror = writeErrorCallback;
                 }, writeErrorCallback);
             }, resolveErrorCallback);
         }, resolveErrorCallback);
