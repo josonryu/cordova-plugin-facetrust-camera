@@ -182,7 +182,7 @@ var bizHandler = {
                         writeErrorCallback(error);
                     }
                 }, writeErrorCallback);
-            });
+            }, resolveErrorCallback);
         }, resolveErrorCallback);
     },
     removeFile: function (filePath, successCallback, errorCallback) {
