@@ -174,9 +174,13 @@ var bizHandler = {
             };
             dir.getFile(fileName, options, function (file) {
                 file.createWriter(function (fileWriter) {
-                    fileWriter.write(dataBlob);
-                    // 処理成功
-                    successCallback();
+                    try {
+                        fileWriter.write(dataBlob);
+                        // 処理成功
+                        successCallback();
+                    } catch (error) {
+                        writeErrorCallback(error);
+                    }
                 }, writeErrorCallback);
             });
         }, resolveErrorCallback);
