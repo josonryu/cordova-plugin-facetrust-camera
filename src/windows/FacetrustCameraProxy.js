@@ -8,7 +8,7 @@ var { CODE_MAP, ARG_KEYS, PATH,
     deserialize, decrypt,
     getErrorResult, getCancelResult,
     getSuccessResult, removeFile,
-    createDirectory } = BIZ;
+    createDirectory, trace } = BIZ;
 var { DOC_TYPE_OCR, RESULT_CODE, CAMERA_DIV } = CODE_MAP;
 var cameraFolderPath, resultFilePath, settingsFilePath;
 var personalIdentifyDocuments, cameraDiv, cameraTimeoutSeconds;
@@ -168,17 +168,12 @@ function readResult(successCallback, errorCallback) {
         var xmlDoc = deserialize(xmlString);
         return successCallback(xmlToJson(xmlDoc));
     };
-    var resolveErrorCallback = function () {
-
-    };
-    var readErrorCallback = function () {
-    };
-    readFileTxtData(resultFilePath, readFileTxtDataSuccessCallback, resolveErrorCallback, readErrorCallback);
+    readFileTxtData(resultFilePath, readFileTxtDataSuccessCallback, function () { }, function () { });
 }
 
 function clearCameraInfo() {
     removeFileErrorCallback = function () {
-
+        trace(cameraFolderPath, 'IC99_0004');
     }
     removeFile(settingsFilePath, function () { }, removeFileErrorCallback);
     removeFile(resultFilePath, function () { }, removeFileErrorCallback);

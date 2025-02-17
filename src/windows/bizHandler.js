@@ -163,11 +163,11 @@ var bizHandler = {
      * @param  {any} successCallback - 処理成功時コールバック
      * @param  {any} resolveErrorCallback - リゾルブ失敗時コールバック
      * @param  {any} writeErrorCallback - 保存失敗時コールバック
+     * @param  {any} isAppend - ファイル追加フラグ
      */
-    saveFileTxtData: function (dirPath, fileName, txtData, successCallback, resolveErrorCallback, writeErrorCallback) {
-        var strSrc = [txtData];
+    saveFileTxtData: function (dirPath, fileName, txtData, successCallback, resolveErrorCallback, writeErrorCallback, isAppend = false) {
         // TXT形式データのBlob型変換
-        var dataBlob = new Blob(strSrc, { type: 'text/plain' });
+        var dataBlob = new Blob([txtData], { type: 'text/plain' });
         window.resolveLocalFileSystemURL(dirPath, function (dir) {
             // ファイルシステムオプション
             var options = {
@@ -176,6 +176,9 @@ var bizHandler = {
             };
             dir.getFile(fileName, options, function (file) {
                 file.createWriter(function (fileWriter) {
+                    if (isAppend) {
+                        fileWriter.seek(fileWriter.length);
+                    }
                     fileWriter.write(dataBlob);
                     // 処理成功
                     fileWriter.onwrite = successCallback;
@@ -195,7 +198,7 @@ var bizHandler = {
         function buildXml(obj) {
             let result = '';
 
-            for (const key in obj) {
+            for (var key in obj) {
                 if (obj.hasOwnProperty(key)) {
                     if (typeof obj[key] === 'object' && obj[key] !== null) {
                         result += `<${key}>\n${buildXml(obj[key])}</${key}>\n`;
@@ -213,9 +216,9 @@ var bizHandler = {
         var json = {};
         var rootElement = xml.documentElement;
         for (let i = 0; i < rootElement.children.length; i++) {
-            const child = rootElement.children[i];
-            const elementName = child.nodeName;
-            const elementValue = child.textContent;
+            var child = rootElement.children[i];
+            var elementName = child.nodeName;
+            var elementValue = child.textContent;
             json[elementName] = elementValue;
         }
         return json;
@@ -285,21 +288,31 @@ var bizHandler = {
         var keyBytes = CryptoJS.enc.Base64.parse(bizHandler.AES.KEY);
         var ivBytes = CryptoJS.enc.Base64.parse(bizHandler.AES.IV);
         var option = { iv: ivBytes, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 };
-        const encrypted = CryptoJS.AES.encrypt(data, keyBytes, option);
+        var encrypted = CryptoJS.AES.encrypt(data, keyBytes, option);
         return encrypted.toString();
     },
     decrypt: function (encryptedData) {
         var keyBytes = CryptoJS.enc.Base64.parse(bizHandler.AES.KEY);
         var ivBytes = CryptoJS.enc.Base64.parse(bizHandler.AES.IV);
         var option = { iv: ivBytes, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 };
-        const decrypted = CryptoJS.AES.decrypt(encryptedData, keyBytes, option);
+        var decrypted = CryptoJS.AES.decrypt(encryptedData, keyBytes, option);
         return decrypted.toString(CryptoJS.enc.Utf8);
     },
-    trace: function (msgId) {
-        // var today = new Date();
-        // var date = today.getFullYear() + ('0' + (today.getMonth() + 1)).slice(-2) + ('0' + today.getDate()).slice(-2);
-        // var datetime;
-    }
+    trace: function (parentPath, msgId, params) {
+        var now = new Date();
+        var year = now.getFullYear();
+        var month = String(now.getMonth() + 1).padStart(2, '0');
+        var day = String(now.getDate()).padStart(2, '0');
+        var hours = String(now.getHours()).padStart(2, '0');
+        var minutes = String(now.getMinutes()).padStart(2, '0');
+        var seconds = String(now.getSeconds()).padStart(2, '0');
+
+        var date = `${year}${month}${day}`;
+        var datetime = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+        var filePath = `facetrust${date}.trace`;
+        var content = `[${datetime}] [${msgId}] - ${bizHandler.getMsg(msgId, params)}\n`;
+        bizHandler.saveFileTxtData(parentPath, filePath, content, function () { }, function () { }, function () { }, true);
+    },
 };
 
 module.exports = bizHandler;
