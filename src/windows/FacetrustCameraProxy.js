@@ -27,7 +27,7 @@ exports.startCamera = function (successCallback, errorCallback, args) {
     }
 
     var getCameraResultSuccessCallback = function (cameraResult) {
-        // clearCameraInfo();
+        clearCameraInfo();
         successCallback(cameraResult);
     };
     var launchCameraAppSuccessCallback = function () {
@@ -114,6 +114,8 @@ function getCameraResult(successCallback, errorCallback) {
                     } else {
                         return errorCallback(getErrorResult('IC00_0015'));
                     }
+                } else {
+                    return errorCallback(getErrorResult(CAMERA_ERROR_CODE));
                 }
             } else {
                 return errorCallback(getErrorResult(CAMERA_ERROR_CODE, [DYNAEYE_RETURN_CODE]));
@@ -164,14 +166,12 @@ function readSettings(successCallback, errorCallback) {
 function readResult(successCallback, errorCallback) {
     var readFileTxtDataSuccessCallback = function (xmlString) {
         var xmlDoc = deserialize(xmlString);
-        // if (!xmlDoc) return errorCallback();
         return successCallback(xmlToJson(xmlDoc));
     };
     var resolveErrorCallback = function () {
-        // errorCallback();
+
     };
     var readErrorCallback = function () {
-        // errorCallback();
     };
     readFileTxtData(resultFilePath, readFileTxtDataSuccessCallback, resolveErrorCallback, readErrorCallback);
 }
